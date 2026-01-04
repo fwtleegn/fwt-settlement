@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FWT Settlement Assistant</title>
+
+<!--
+FWT_INTERNAL_TOOL
+Owner: FRIENDS WITH TENNIS
+Purpose: Tennis Settlement Assistant
+Distribution: Private / Internal Use Only
+-->
+
+<script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+
+<style>
+:root{
+  --bg:#f5f7f8; --card:#fff; --line:#e6e8eb;
+  --text:#111; --muted:#666; --accent:#0f766e;
+}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  background:var(--bg); color:var(--text);
+}
+.wrap{max-width:920px;margin:18px auto;padding:0 14px 40px}
+h1{font-size:20px;margin:10px 0}
+.card{
+  background:var(--card); border:1px solid var(--line);
+  border-radius:14px; padding:14px; margin-bottom:14px;
+}
+h2{font-size:15px;margin:0 0 10px}
+label{font-size:12px;color:var(--muted)}
+input,textarea,select{
+  width:100%; box-sizing:border-box;
+  padding:10px; border-radius:10px;
+  border:1px solid var(--line); font-size:14px;
+}
+textarea{min-height:140px}
+button{
+  background:var(--accent); color:#fff;
+  border:none; border-radius:10px;
+  padding:10px 14px; cursor:pointer;
+}
+button.secondary{
+  background:#fff;color:#111;border:1px solid var(--line)
+}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.hr{height:1px;background:var(--line);margin:12px 0}
+.big{font-size:18px;font-weight:800}
+.mono{font-family:ui-monospace,monospace}
+.muted{font-size:12px;color:var(--muted)}
+.split{display:flex;justify-content:space-between;align-items:baseline}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+
+/* FWT HEADER */
+.fwt-header{
+  display:flex;align-items:center;gap:14px;
+  background:var(--accent);color:#fff;
+  padding:14px 18px;border-radius:14px;margin-bottom:16px
+}
+.fwt-logo{
+  font-size:26px;font-weight:900;
+  background:#fff;color:var(--accent);
+  padding:6px 12px;border-radius:10px;
+  letter-spacing:2px
+}
+.fwt-title .name{font-size:16px;font-weight:800}
+.fwt-title .sub{font-size:12px;opacity:.85}
+
+/* FOOTER */
+.fwt-footer{
+  margin-top:20px;padding:14px;
+  font-size:12px;color:#555;text-align:center;
+  background:#f0fdfa;border:1px solid #c7f0ea;
+  border-radius:12px
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<header class="fwt-header">
+  <div class="fwt-logo">FWT</div>
+  <div class="fwt-title">
+    <div class="name">FRIENDS WITH TENNIS</div>
+    <div class="sub">Settlement Assistant · Internal Use Only</div>
+  </div>
+</header>
+
+<div class="card">
+<h2>📷 참석자 스크린샷 OCR</h2>
+<input type="file" id="imgInput" accept="image/*">
+<div class="btns">
+  <button id="btnOCR">OCR 실행</button>
+  <button class="secondary" id="btnClear">초기화</button>
+</div>
+<div class="hr"></div>
+<div class="mono muted" id="ocrStatus">대기중</div>
+</div>
+
+<div class="card">
+<h2>👥 참석자 명단</h2>
+<div class="muted">#으로 시작하면 정산 제외</div>
+<textarea id="names"></textarea>
+<div class="hr"></div>
+<div class="split">
+  <div class="muted">정산 대상</div><div class="big mono" id="count">0명</div>
+</div>
+</div>
+
+<div class="card">
+<h2>💰 비용 입력</h2>
+<div class="row3">
+  <input id="courts" placeholder="코트 수">
+  <input id="hourly" placeholder="시간당 비용">
+  <input id="hours" placeholder="사용 시간">
+</div>
+<div class="row" style="margin-top:8px">
+  <input id="ballsQty" placeholder="캔볼 수량">
+  <input id="ballsPrice" placeholder="캔볼 가격">
+</div>
+<div class="hr"></div>
+<div class="split">
+  <div class="muted">총액</div><div class="big mono" id="total">0원</div>
+</div>
+<div class="split">
+  <div class="muted">1/N</div><div class="big mono" id="per">0원</div>
+</div>
+</div>
+
+<div class="card">
+<h2>📋 복사용 결과</h2>
+<textarea id="output" class="mono" readonly></textarea>
+<button style="margin-top:8px" id="copyBtn">복사</button>
+</div>
+
+<footer class="fwt-footer">
+© FRIENDS WITH TENNIS (FWT)<br>
+본 웹앱은 FWT 내부 정산 보조용으로만 제작되었습니다.<br>
+무단 복제·배포·수정 및 타 클럽 사용을 금합니다.
+</footer>
+
+</div>
+
+<script>
+const __FWT_SIGNATURE__ = "FRIENDS_WITH_TENNIS_INTERNAL_ONLY_2026";
+
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString()+"원";
+const num=v=>Number(String(v||"").replace(/[,\s원]/g,""))||0;
+
+function recalc(){
+  const total=num(courts.value)*num(hourly.value)*num(hours.value)
+            +num(ballsQty.value)*num(ballsPrice.value);
+  const list=names.value.split("\n").map(v=>v.trim()).filter(v=>v&&!v.startsWith("#"));
+  totalEl.textContent=fmt(total);
+  perEl.textContent=list.length?fmt(total/list.length):"0원";
+  count.textContent=list.length+"명";
+  output.value=[
+    "FRIENDS WITH TENNIS (FWT)",
+    "© FWT Internal Use Only",
+    "",
+    ...list.map(n=>n.startsWith("@")?n:"@"+n),
+    "",
+    "총액: "+fmt(total),
+    "1/N: "+(list.length?fmt(total/list.length):"0원")
+  ].join("\n");
+}
+
+async function runOCR(){
+  const f=imgInput.files[0];
+  if(!f){ocrStatus.textContent="이미지 선택 필요";return;}
+  ocrStatus.textContent="OCR 처리중…";
+  try{
+    const worker=await Tesseract.createWorker("kor+eng",1,{
+      logger:m=>ocrStatus.textContent=m.status
+    });
+    const {data}=await worker.recognize(f);
+    await worker.terminate();
+    names.value=data.text.split("\n").map(v=>v.trim()).filter(v=>v.length>1).join("\n");
+    ocrStatus.textContent="OCR 완료 (검토 필요)";
+    recalc();
+  }catch(e){
+    ocrStatus.textContent="OCR 실패 (https 환경 필요)";
+  }
+}
+
+btnOCR.onclick=runOCR;
+btnClear.onclick=()=>{names.value="";output.value="";recalc();}
+copyBtn.onclick=()=>navigator.clipboard.writeText(output.value);
+
+["courts","hourly","hours","ballsQty","ballsPrice","names"]
+.forEach(id=>$(id).addEventListener("input",recalc));
+
+const courts=$("courts"),hourly=$("hourly"),hours=$("hours");
+const ballsQty=$("ballsQty"),ballsPrice=$("ballsPrice");
+const names=$("names"),output=$("output");
+const totalEl=$("total"),perEl=$("per"),count=$("count");
+const imgInput=$("imgInput"),ocrStatus=$("ocrStatus");
+</script>
+</body>
+</html>
