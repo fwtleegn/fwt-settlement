@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>FWT Settlement Assistant</title>
 
 <script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
@@ -13,13 +13,10 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo"
 .wrap{max-width:920px;margin:18px auto;padding:0 14px 40px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
 h2{font-size:15px;margin:0 0 10px}
-label{font-size:12px;color:var(--muted)}
-input,textarea,select{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--line);font-size:14px}
+input,textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--line);font-size:14px}
 textarea{min-height:140px}
 button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer}
 button.secondary{background:#fff;color:#111;border:1px solid var(--line)}
-button:disabled{opacity:.5}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .hr{height:1px;background:var(--line);margin:12px 0}
 .big{font-size:18px;font-weight:800}
@@ -34,7 +31,7 @@ button:disabled{opacity:.5}
 <div class="wrap">
 
 <div class="card">
-<h2>📷 참석자 스크린샷 OCR (안정 버전)</h2>
+<h2>📷 참석자 스크린샷 OCR (안정)</h2>
 <input type="file" id="imgInput" accept="image/*" multiple>
 <div class="btns">
 <button id="btnOCR">OCR 실행</button>
@@ -49,16 +46,14 @@ button:disabled{opacity:.5}
 <textarea id="names"></textarea>
 <div class="hr"></div>
 <div class="split">
-<div class="muted">정산 대상</div><div class="big mono" id="count">0명</div>
+<div class="muted">정산 대상</div>
+<div class="big mono" id="count">0명</div>
 </div>
 </div>
 
 <div class="card">
 <h2>🗓️ 정산 정보</h2>
-<div class="row">
 <input type="date" id="datePick">
-<input type="text" id="accountLine" placeholder="계좌번호 (그대로 출력)">
-</div>
 </div>
 
 <div class="card">
@@ -68,7 +63,7 @@ button:disabled{opacity:.5}
 <input id="hourly" placeholder="시간당 비용">
 <input id="hours" placeholder="시간">
 </div>
-<div class="row" style="margin-top:8px">
+<div class="row3" style="margin-top:8px">
 <input id="ballsQty" placeholder="캔볼 수량">
 <input id="ballsPrice" placeholder="캔볼 가격">
 </div>
@@ -87,67 +82,117 @@ button:disabled{opacity:.5}
 </div>
 
 <script>
-const $=id=>document.getElementById(id);
-const num=v=>Number(String(v||"").replace(/[^\d.]/g,""))||0;
-const fmt=n=>Math.round(n).toLocaleString()+"원";
-const W=["일","월","화","수","목","금","토"];
+const FIXED_ACCOUNT = "토스뱅크 1000-4041-9325";
+
+const $ = id => document.getElementById(id);
+const num = v => Number(String(v||"").replace(/[^\d.]/g,"")) || 0;
+const fmt = n => Math.round(n).toLocaleString()+"원";
+const W = ["일","월","화","수","목","금","토"];
 
 function fmtDate(v){
- if(!v) return "";
- const d=new Date(v+"T00:00:00");
- return `${String(d.getMonth()+1).padStart(2,"0")}월${String(d.getDate()).padStart(2,"0")}일(${W[d.getDay()]})`;
+  if(!v) return "";
+  const d = new Date(v+"T00:00:00");
+  return `${String(d.getMonth()+1).padStart(2,"0")}월${String(d.getDate()).padStart(2,"0")}일(${W[d.getDay()]})`;
+}
+
+/* 🔒 자동 중복 제거 (현재 textarea 기준 ONLY) */
+function dedupeCurrentNames(){
+  const lines = names.value
+    .split("\n")
+    .map(l => l.trim().replace(/\s+/g," "))
+    .filter(l => l.length);
+
+  const seen = new Set();
+  const deduped = [];
+
+  for(const line of lines){
+    if(!seen.has(line)){
+      seen.add(line);
+      deduped.push(line);
+    }
+  }
+
+  names.value = deduped.join("\n");
 }
 
 async function runOCR(){
- const files=[...imgInput.files];
- if(!files.length){ocrStatus.textContent="이미지 선택 필요";return;}
- ocrStatus.textContent="OCR 시작…";
- for(const f of files){
-   ocrStatus.textContent=`처리중: ${f.name}`;
-   const worker=await Tesseract.createWorker("kor+eng");
-   const {data}=await worker.recognize(f);
-   await worker.terminate();
-   const lines=data.text.split("\n").map(v=>v.trim()).filter(v=>v.length>1);
-   if(lines.length){
-     names.value+=(names.value?"\n":"")+lines.join("\n");
-   }
- }
- ocrStatus.textContent="OCR 완료 (검토 권장)";
- recalc();
+  const files = [...imgInput.files];
+  if(!files.length){
+    ocrStatus.textContent = "이미지 선택 필요";
+    return;
+  }
+
+  ocrStatus.textContent = "OCR 시작…";
+
+  for(const f of files){
+    ocrStatus.textContent = `처리중: ${f.name}`;
+    const worker = await Tesseract.createWorker("kor+eng");
+    const { data } = await worker.recognize(f);
+    await worker.terminate();
+
+    const lines = data.text
+      .split("\n")
+      .map(v => v.trim())
+      .filter(v => v.length > 1);
+
+    if(lines.length){
+      names.value += (names.value ? "\n" : "") + lines.join("\n");
+    }
+  }
+
+  /* 🔥 OCR 전체 종료 후 단 1회 자동 중복 제거 */
+  dedupeCurrentNames();
+
+  ocrStatus.textContent = "OCR 완료 (중복 자동 제거됨)";
+  recalc();
 }
 
 function recalc(){
- const list=names.value.split("\n").map(v=>v.trim()).filter(v=>v&&!v.startsWith("#"));
- count.textContent=list.length+"명";
- const court=num(courts.value)*num(hourly.value)*num(hours.value);
- const ball=num(ballsQty.value)*num(ballsPrice.value);
- const total=court+ball;
- courtTotal.textContent=fmt(court);
- ballTotal.textContent=fmt(ball);
- grandTotal.textContent=fmt(total);
- const per=list.length?fmt(total/list.length):"0원";
+  const list = names.value
+    .split("\n")
+    .map(v => v.trim())
+    .filter(v => v && !v.startsWith("#"));
 
- const header=fmtDate(datePick.value)+" 코트비 정산입니다.";
- output.value=[
-   header,"",
-   "총 코트비: "+fmt(court),
-   "총 캔볼비: "+fmt(ball),
-   "총액: "+fmt(total),
-   "정산대상: "+list.length+"명","",
-   ...list.map(n=>n.startsWith("@")?n:"@"+n),
-   "", "1/N: "+per,
-   accountLine.value?("\n"+accountLine.value):""
- ].join("\n");
+  count.textContent = list.length + "명";
+
+  const court = num(courts.value) * num(hourly.value) * num(hours.value);
+  const ball  = num(ballsQty.value) * num(ballsPrice.value);
+  const total = court + ball;
+
+  courtTotal.textContent = fmt(court);
+  ballTotal.textContent  = fmt(ball);
+  grandTotal.textContent = fmt(total);
+
+  const per = list.length ? fmt(total / list.length) : "0원";
+  const header = fmtDate(datePick.value) + " 코트비 정산입니다.";
+
+  output.value = [
+    header,"",
+    "총 코트비: " + fmt(court),
+    "총 캔볼비: " + fmt(ball),
+    "총액: " + fmt(total),
+    "정산대상: " + list.length + "명","",
+    ...list.map(n => n.startsWith("@") ? n : "@"+n),
+    "",
+    "1/N: " + per,
+    "",
+    FIXED_ACCOUNT
+  ].join("\n");
 }
 
-btnOCR.onclick=runOCR;
-btnClear.onclick=()=>{names.value="";output.value="";ocrStatus.textContent="대기중";recalc();}
-copyBtn.onclick=()=>navigator.clipboard.writeText(output.value);
+btnOCR.onclick = runOCR;
+btnClear.onclick = () => {
+  names.value = "";
+  output.value = "";
+  ocrStatus.textContent = "대기중";
+  recalc();
+};
+copyBtn.onclick = () => navigator.clipboard.writeText(output.value);
 
-["names","courts","hourly","hours","ballsQty","ballsPrice","datePick","accountLine"]
-.forEach(id=>$(id).addEventListener("input",recalc));
+["names","courts","hourly","hours","ballsQty","ballsPrice","datePick"]
+  .forEach(id => $(id).addEventListener("input", recalc));
 
-datePick.value=new Date().toISOString().slice(0,10);
+datePick.value = new Date().toISOString().slice(0,10);
 recalc();
 </script>
 </body>
