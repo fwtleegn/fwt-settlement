@@ -15,37 +15,17 @@ Distribution: Private / Internal Use Only
 <script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
 
 <style>
-:root{
-  --bg:#f5f7f8; --card:#fff; --line:#e6e8eb;
-  --text:#111; --muted:#666; --accent:#0f766e;
-}
-body{
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  background:var(--bg); color:var(--text);
-}
+:root{--bg:#f5f7f8;--card:#fff;--line:#e6e8eb;--text:#111;--muted:#666;--accent:#0f766e}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:var(--bg);color:var(--text)}
 .wrap{max-width:920px;margin:18px auto;padding:0 14px 40px}
-h1{font-size:20px;margin:10px 0}
-.card{
-  background:var(--card); border:1px solid var(--line);
-  border-radius:14px; padding:14px; margin-bottom:14px;
-}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
 h2{font-size:15px;margin:0 0 10px}
 label{font-size:12px;color:var(--muted)}
-input,textarea,select{
-  width:100%; box-sizing:border-box;
-  padding:10px; border-radius:10px;
-  border:1px solid var(--line); font-size:14px;
-}
+input,textarea,select{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--line);font-size:14px}
 textarea{min-height:140px}
-button{
-  background:var(--accent); color:#fff;
-  border:none; border-radius:10px;
-  padding:10px 14px; cursor:pointer;
-}
-button.secondary{
-  background:#fff;color:#111;border:1px solid var(--line)
-}
+button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer}
+button.secondary{background:#fff;color:#111;border:1px solid var(--line)}
+button:disabled{opacity:.55;cursor:not-allowed}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .hr{height:1px;background:var(--line);margin:12px 0}
@@ -56,27 +36,17 @@ button.secondary{
 .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 
 /* FWT HEADER */
-.fwt-header{
-  display:flex;align-items:center;gap:14px;
-  background:var(--accent);color:#fff;
-  padding:14px 18px;border-radius:14px;margin-bottom:16px
-}
-.fwt-logo{
-  font-size:26px;font-weight:900;
-  background:#fff;color:var(--accent);
-  padding:6px 12px;border-radius:10px;
-  letter-spacing:2px
-}
+.fwt-header{display:flex;align-items:center;gap:14px;background:var(--accent);color:#fff;padding:14px 18px;border-radius:14px;margin-bottom:16px}
+.fwt-logo{font-size:26px;font-weight:900;background:#fff;color:var(--accent);padding:6px 12px;border-radius:10px;letter-spacing:2px}
 .fwt-title .name{font-size:16px;font-weight:800}
 .fwt-title .sub{font-size:12px;opacity:.85}
 
 /* FOOTER */
-.fwt-footer{
-  margin-top:20px;padding:14px;
-  font-size:12px;color:#555;text-align:center;
-  background:#f0fdfa;border:1px solid #c7f0ea;
-  border-radius:12px
-}
+.fwt-footer{margin-top:20px;padding:14px;font-size:12px;color:#555;text-align:center;background:#f0fdfa;border:1px solid #c7f0ea;border-radius:12px}
+
+/* preview */
+.preview-img{max-width:100%;border-radius:12px;border:1px solid var(--line);display:none;margin-top:10px}
+.progressline{margin-top:8px}
 </style>
 </head>
 
@@ -92,50 +62,89 @@ button.secondary{
 </header>
 
 <div class="card">
-<h2>📷 참석자 스크린샷 OCR</h2>
-<input type="file" id="imgInput" accept="image/*">
-<div class="btns">
-  <button id="btnOCR">OCR 실행</button>
-  <button class="secondary" id="btnClear">초기화</button>
-</div>
-<div class="hr"></div>
-<div class="mono muted" id="ocrStatus">대기중</div>
+  <h2>📷 참석자 스크린샷 OCR (여러 장 한 번에)</h2>
+  <div class="muted">팁: 명단 부분만 크게 확대해서 2~3장으로 나눠 찍으면 정확도 급상승</div>
+
+  <!-- ✅ multiple 추가 -->
+  <input type="file" id="imgInput" accept="image/*" multiple>
+
+  <div class="row" style="margin-top:10px">
+    <div>
+      <label>전처리 강도(권장 2)</label>
+      <select id="prepLevel">
+        <option value="1">1 (약)</option>
+        <option value="2" selected>2 (권장)</option>
+        <option value="3">3 (강)</option>
+      </select>
+    </div>
+    <div>
+      <label>확대 배율(권장 3x)</label>
+      <select id="scale">
+        <option value="2">2x</option>
+        <option value="3" selected>3x</option>
+        <option value="4">4x</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button id="btnOCR">OCR 실행(선택한 이미지 전부)</button>
+    <button class="secondary" id="btnClear">초기화</button>
+  </div>
+
+  <img id="previewImg" class="preview-img" alt="preview">
+  <div class="progressline mono muted" id="batchStatus">-</div>
+  <div class="hr"></div>
+  <div class="mono muted" id="ocrStatus">대기중</div>
 </div>
 
 <div class="card">
-<h2>👥 참석자 명단</h2>
-<div class="muted">#으로 시작하면 정산 제외</div>
-<textarea id="names"></textarea>
-<div class="hr"></div>
-<div class="split">
-  <div class="muted">정산 대상</div><div class="big mono" id="count">0명</div>
-</div>
-</div>
-
-<div class="card">
-<h2>💰 비용 입력</h2>
-<div class="row3">
-  <input id="courts" placeholder="코트 수">
-  <input id="hourly" placeholder="시간당 비용">
-  <input id="hours" placeholder="사용 시간">
-</div>
-<div class="row" style="margin-top:8px">
-  <input id="ballsQty" placeholder="캔볼 수량">
-  <input id="ballsPrice" placeholder="캔볼 가격">
-</div>
-<div class="hr"></div>
-<div class="split">
-  <div class="muted">총액</div><div class="big mono" id="total">0원</div>
-</div>
-<div class="split">
-  <div class="muted">1/N</div><div class="big mono" id="per">0원</div>
-</div>
+  <h2>👥 참석자 명단</h2>
+  <div class="muted">#으로 시작하면 정산 제외 (예: #운영진)</div>
+  <textarea id="names" placeholder="@Olive&#10;@냥이&#10;브라더&#10;#운영진"></textarea>
+  <div class="hr"></div>
+  <div class="split">
+    <div class="muted">정산 대상</div><div class="big mono" id="count">0명</div>
+  </div>
 </div>
 
 <div class="card">
-<h2>📋 복사용 결과</h2>
-<textarea id="output" class="mono" readonly></textarea>
-<button style="margin-top:8px" id="copyBtn">복사</button>
+  <h2>💰 비용 입력</h2>
+
+  <label>코트비</label>
+  <div class="row3">
+    <input id="courts" placeholder="코트 수 (예: 2)" inputmode="numeric">
+    <input id="hourly" placeholder="시간당 비용 (예: 50000)" inputmode="numeric">
+    <input id="hours" placeholder="사용 시간 (예: 2)" inputmode="decimal">
+  </div>
+
+  <label style="margin-top:10px">캔볼</label>
+  <div class="row">
+    <input id="ballsQty" placeholder="캔볼 수량 (예: 3)" inputmode="numeric">
+    <input id="ballsPrice" placeholder="캔볼 가격 (예: 10000)" inputmode="numeric">
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="split">
+    <div class="muted">총 코트비</div><div class="big mono" id="courtTotal">0원</div>
+  </div>
+  <div class="split">
+    <div class="muted">총 캔볼비</div><div class="big mono" id="ballTotal">0원</div>
+  </div>
+  <div class="split">
+    <div class="muted">총액</div><div class="big mono" id="grandTotal">0원</div>
+  </div>
+  <div class="split">
+    <div class="muted">1/N</div><div class="big mono" id="per">0원</div>
+  </div>
+  <div class="muted mono" id="formula">-</div>
+</div>
+
+<div class="card">
+  <h2>📋 복사용 결과 (명단 + 정산요약)</h2>
+  <textarea id="output" class="mono" readonly></textarea>
+  <button style="margin-top:8px" id="copyBtn">복사</button>
 </div>
 
 <footer class="fwt-footer">
@@ -149,58 +158,210 @@ button.secondary{
 <script>
 const __FWT_SIGNATURE__ = "FRIENDS_WITH_TENNIS_INTERNAL_ONLY_2026";
 
-const $=id=>document.getElementById(id);
-const fmt=n=>Math.round(n).toLocaleString()+"원";
-const num=v=>Number(String(v||"").replace(/[,\s원]/g,""))||0;
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.round(n).toLocaleString() + "원";
+const num = (v) => Number(String(v||"").replace(/[,\s원]/g,"")) || 0;
+
+let isRunning = false;
+
+function getIncludedNames(){
+  return $("names").value
+    .split("\n")
+    .map(v => v.trim())
+    .filter(v => v && !v.startsWith("#"));
+}
 
 function recalc(){
-  const total=num(courts.value)*num(hourly.value)*num(hours.value)
-            +num(ballsQty.value)*num(ballsPrice.value);
-  const list=names.value.split("\n").map(v=>v.trim()).filter(v=>v&&!v.startsWith("#"));
-  totalEl.textContent=fmt(total);
-  perEl.textContent=list.length?fmt(total/list.length):"0원";
-  count.textContent=list.length+"명";
-  output.value=[
+  const courts = num($("courts").value);
+  const hourly = num($("hourly").value);
+  const hours  = num($("hours").value);
+  const ballsQ = num($("ballsQty").value);
+  const ballsP = num($("ballsPrice").value);
+
+  const courtTotal = courts * hourly * hours;
+  const ballTotal  = ballsQ * ballsP;
+  const grandTotal = courtTotal + ballTotal;
+
+  $("courtTotal").textContent = fmt(courtTotal);
+  $("ballTotal").textContent  = fmt(ballTotal);
+  $("grandTotal").textContent = fmt(grandTotal);
+
+  const list = getIncludedNames();
+  $("count").textContent = list.length + "명";
+  $("per").textContent = list.length ? fmt(grandTotal / list.length) : "0원";
+
+  $("formula").textContent =
+    `${courts}코트 × ${hourly.toLocaleString()}원/시간 × ${hours}시간 + ` +
+    `${ballsQ}개 × ${ballsP.toLocaleString()}원`;
+
+  const nameLines = list.map(n => n.startsWith("@") ? n : "@"+n);
+
+  $("output").value = [
     "FRIENDS WITH TENNIS (FWT)",
     "© FWT Internal Use Only",
     "",
-    ...list.map(n=>n.startsWith("@")?n:"@"+n),
+    "총 코트비: " + fmt(courtTotal),
+    "총 캔볼비: " + fmt(ballTotal),
+    "총액: " + fmt(grandTotal),
+    "정산대상: " + list.length + "명",
+    "1/N: " + (list.length ? fmt(grandTotal / list.length) : "0원"),
     "",
-    "총액: "+fmt(total),
-    "1/N: "+(list.length?fmt(total/list.length):"0원")
+    ...nameLines
   ].join("\n");
 }
 
-async function runOCR(){
-  const f=imgInput.files[0];
-  if(!f){ocrStatus.textContent="이미지 선택 필요";return;}
-  ocrStatus.textContent="OCR 처리중…";
+async function preprocessToDataURL(file){
+  const level = Number($("prepLevel").value || 2);
+  const scale = Number($("scale").value || 3);
+
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = reject;
+    i.src = URL.createObjectURL(file);
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = Math.floor(img.width * scale);
+  canvas.height = Math.floor(img.height * scale);
+  const ctx = canvas.getContext("2d", { willReadFrequently:true });
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  const d = imgData.data;
+
+  const contrast = level === 1 ? 1.2 : level === 2 ? 1.6 : 2.0;
+  const thresh   = level === 1 ? 170 : level === 2 ? 155 : 140;
+
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i], g=d[i+1], b=d[i+2];
+    let y = 0.299*r + 0.587*g + 0.114*b;
+    y = (y - 128) * contrast + 128;
+    const v = (y > thresh) ? 255 : 0;
+    d[i]=d[i+1]=d[i+2]=v;
+    d[i+3]=255;
+  }
+  ctx.putImageData(imgData,0,0);
+
+  const dataUrl = canvas.toDataURL("image/png");
+  URL.revokeObjectURL(img.src);
+  return dataUrl;
+}
+
+function cleanOCRText(text){
+  const lines = (text||"")
+    .split(/\r?\n/)
+    .map(l => l.replace(/[•·]/g," ").replace(/\s+/g," ").trim())
+    .filter(l => l.length >= 2);
+
+  const filtered = lines.filter(l => !/^\d+$/.test(l));
+  return filtered.join("\n");
+}
+
+// ✅ 여러 장 OCR: 한 장씩 순서대로 처리
+async function runBatchOCR(){
+  if (isRunning) return;
+
+  const files = Array.from($("imgInput").files || []);
+  if (!files.length){
+    $("ocrStatus").textContent = "이미지 선택 필요";
+    return;
+  }
+
+  isRunning = true;
+  $("btnOCR").disabled = true;
+  $("imgInput").disabled = true;
+  $("batchStatus").textContent = `선택 이미지: ${files.length}장`;
+
   try{
-    const worker=await Tesseract.createWorker("kor+eng",1,{
-      logger:m=>ocrStatus.textContent=m.status
+    // Worker 1번만 만들고 여러 장에 재사용(속도/안정성)
+    $("ocrStatus").textContent = "OCR 워커 준비중…";
+    const worker = await Tesseract.createWorker("kor+eng", 1, {
+      logger: (m) => {
+        const p = m.progress ? ` ${(m.progress*100).toFixed(0)}%` : "";
+        $("ocrStatus").textContent = `${m.status}${p}`;
+      },
+      workerPath: "https://unpkg.com/tesseract.js@5.0.5/dist/worker.min.js",
+      corePath: "https://unpkg.com/tesseract.js-core@5.0.0/tesseract-core.wasm.js",
+      langPath: "https://tessdata.projectnaptha.com/4.0.0"
     });
-    const {data}=await worker.recognize(f);
+
+    await worker.setParameters({
+      tessedit_pageseg_mode: "6",
+      preserve_interword_spaces: "1"
+    });
+
+    let appendedAny = false;
+
+    for (let i=0; i<files.length; i++){
+      const f = files[i];
+      $("batchStatus").textContent = `처리중: ${i+1}/${files.length} (${f.name})`;
+
+      $("ocrStatus").textContent = "전처리 중…";
+      const dataUrl = await preprocessToDataURL(f);
+
+      // 미리보기는 현재 처리중인 이미지로 갱신
+      $("previewImg").src = dataUrl;
+      $("previewImg").style.display = "block";
+
+      const { data } = await worker.recognize(dataUrl);
+      const cleaned = cleanOCRText(data?.text || "");
+
+      if (cleaned.trim()){
+        const prev = $("names").value.trim();
+        $("names").value = prev ? (prev + "\n" + cleaned) : cleaned;
+        appendedAny = true;
+        recalc();
+      }
+    }
+
     await worker.terminate();
-    names.value=data.text.split("\n").map(v=>v.trim()).filter(v=>v.length>1).join("\n");
-    ocrStatus.textContent="OCR 완료 (검토 필요)";
-    recalc();
-  }catch(e){
-    ocrStatus.textContent="OCR 실패 (https 환경 필요)";
+
+    if (!appendedAny){
+      $("ocrStatus").textContent = "OCR 결과가 비었음 (이미지 확대/자르기/라이트모드 권장)";
+    } else {
+      $("ocrStatus").textContent = "배치 OCR 완료 (오탈자/누락 1회 검토 권장)";
+    }
+    $("batchStatus").textContent = `완료: ${files.length}장 처리`;
+  } catch(e){
+    $("ocrStatus").textContent = "OCR 실패: https 환경/네트워크/이미지 품질 확인 필요";
+    $("batchStatus").textContent = "실패";
+  } finally {
+    isRunning = false;
+    $("btnOCR").disabled = false;
+    $("imgInput").disabled = false;
   }
 }
 
-btnOCR.onclick=runOCR;
-btnClear.onclick=()=>{names.value="";output.value="";recalc();}
-copyBtn.onclick=()=>navigator.clipboard.writeText(output.value);
+$("btnOCR").onclick = runBatchOCR;
 
-["courts","hourly","hours","ballsQty","ballsPrice","names"]
-.forEach(id=>$(id).addEventListener("input",recalc));
+$("btnClear").onclick = () => {
+  $("names").value="";
+  $("output").value="";
+  $("imgInput").value="";
+  $("previewImg").style.display="none";
+  $("ocrStatus").textContent="대기중";
+  $("batchStatus").textContent="-";
+  recalc();
+};
 
-const courts=$("courts"),hourly=$("hourly"),hours=$("hours");
-const ballsQty=$("ballsQty"),ballsPrice=$("ballsPrice");
-const names=$("names"),output=$("output");
-const totalEl=$("total"),perEl=$("per"),count=$("count");
-const imgInput=$("imgInput"),ocrStatus=$("ocrStatus");
+$("copyBtn").onclick = async () => {
+  try{
+    await navigator.clipboard.writeText($("output").value);
+    alert("복사 완료");
+  }catch(e){
+    alert("복사 실패(브라우저 권한). 텍스트를 길게 눌러 직접 복사해줘.");
+  }
+};
+
+["courts","hourly","hours","ballsQty","ballsPrice","names"].forEach(id=>{
+  $(id).addEventListener("input", recalc);
+});
+
+recalc();
 </script>
 </body>
 </html>
