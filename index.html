@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>FWT Settlement Assistant</title>
 
-<!--
-FWT_INTERNAL_TOOL
-Owner: FRIENDS WITH TENNIS
-Purpose: Tennis Settlement Assistant
-Distribution: Private / Internal Use Only
--->
-
 <script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
 
 <style>
@@ -20,228 +13,142 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo"
 .wrap{max-width:920px;margin:18px auto;padding:0 14px 40px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
 h2{font-size:15px;margin:0 0 10px}
-label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px}
+label{font-size:12px;color:var(--muted)}
 input,textarea,select{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--line);font-size:14px}
 textarea{min-height:140px}
 button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer}
 button.secondary{background:#fff;color:#111;border:1px solid var(--line)}
-button:disabled{opacity:.55;cursor:not-allowed}
+button:disabled{opacity:.5}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .hr{height:1px;background:var(--line);margin:12px 0}
 .big{font-size:18px;font-weight:800}
 .mono{font-family:ui-monospace,monospace}
 .muted{font-size:12px;color:var(--muted)}
-.split{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-
-/* FWT HEADER */
-.fwt-header{display:flex;align-items:center;gap:14px;background:var(--accent);color:#fff;padding:14px 18px;border-radius:14px;margin-bottom:16px}
-.fwt-logo{font-size:26px;font-weight:900;background:#fff;color:var(--accent);padding:6px 12px;border-radius:10px;letter-spacing:2px}
-.fwt-title .name{font-size:16px;font-weight:800}
-.fwt-title .sub{font-size:12px;opacity:.85}
-
-/* FOOTER */
-.fwt-footer{margin-top:20px;padding:14px;font-size:12px;color:#555;text-align:center;background:#f0fdfa;border:1px solid #c7f0ea;border-radius:12px}
-
-/* preview */
-.preview-img{max-width:100%;border-radius:12px;border:1px solid var(--line);display:none;margin-top:10px}
-.progressline{margin-top:8px}
+.split{display:flex;justify-content:space-between}
+.btns{display:flex;gap:10px;margin-top:10px}
 </style>
 </head>
 
 <body>
 <div class="wrap">
 
-<header class="fwt-header">
-  <div class="fwt-logo">FWT</div>
-  <div class="fwt-title">
-    <div class="name">FRIENDS WITH TENNIS</div>
-    <div class="sub">Settlement Assistant · Internal Use Only</div>
-  </div>
-</header>
-
 <div class="card">
-  <h2>📷 참석자 스크린샷 OCR (여러 장 한 번에)</h2>
-  <div class="muted">팁: 명단 부분만 크게 확대해서 2~3장으로 나눠 찍으면 정확도 급상승</div>
-
-  <input type="file" id="imgInput" accept="image/*" multiple>
-
-  <div class="row" style="margin-top:10px">
-    <div>
-      <label>전처리 강도(권장 2)</label>
-      <select id="prepLevel">
-        <option value="1">1 (약)</option>
-        <option value="2" selected>2 (권장)</option>
-        <option value="3">3 (강)</option>
-      </select>
-    </div>
-    <div>
-      <label>확대 배율(권장 3x)</label>
-      <select id="scale">
-        <option value="2">2x</option>
-        <option value="3" selected>3x</option>
-        <option value="4">4x</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="btns">
-    <button id="btnOCR">OCR 실행(선택한 이미지 전부)</button>
-    <button class="secondary" id="btnClear">초기화</button>
-  </div>
-
-  <img id="previewImg" class="preview-img" alt="preview">
-  <div class="progressline mono muted" id="batchStatus">-</div>
-  <div class="hr"></div>
-  <div class="mono muted" id="ocrStatus">대기중</div>
+<h2>📷 참석자 스크린샷 OCR (안정 버전)</h2>
+<input type="file" id="imgInput" accept="image/*" multiple>
+<div class="btns">
+<button id="btnOCR">OCR 실행</button>
+<button class="secondary" id="btnClear">초기화</button>
+</div>
+<div class="hr"></div>
+<div class="mono muted" id="ocrStatus">대기중</div>
 </div>
 
 <div class="card">
-  <h2>👥 참석자 명단</h2>
-  <div class="muted">#으로 시작하면 정산 제외 (예: #운영진)</div>
-  <textarea id="names" placeholder="@Olive&#10;@냥이&#10;브라더&#10;#운영진"></textarea>
-  <div class="hr"></div>
-  <div class="split">
-    <div class="muted">정산 대상</div><div class="big mono" id="count">0명</div>
-  </div>
+<h2>👥 참석자 명단</h2>
+<textarea id="names"></textarea>
+<div class="hr"></div>
+<div class="split">
+<div class="muted">정산 대상</div><div class="big mono" id="count">0명</div>
+</div>
 </div>
 
 <div class="card">
-  <h2>🗓️ 정산 정보</h2>
-
-  <div class="row">
-    <div>
-      <label>날짜 선택</label>
-      <input id="datePick" type="date">
-      <div class="muted mono" id="datePreview">-</div>
-    </div>
-    <div>
-      <label>계좌번호(입력 그대로 출력)</label>
-      <input id="accountLine" type="text" placeholder="예: 카카오뱅크 3333-12-3456789 (조성산)">
-    </div>
-  </div>
+<h2>🗓️ 정산 정보</h2>
+<div class="row">
+<input type="date" id="datePick">
+<input type="text" id="accountLine" placeholder="계좌번호 (그대로 출력)">
+</div>
 </div>
 
 <div class="card">
-  <h2>💰 비용 입력</h2>
-
-  <label>코트비</label>
-  <div class="row3">
-    <input id="courts" placeholder="코트 수 (예: 2)" inputmode="numeric">
-    <input id="hourly" placeholder="시간당 비용 (예: 50000)" inputmode="numeric">
-    <input id="hours" placeholder="사용 시간 (예: 2)" inputmode="decimal">
-  </div>
-
-  <label>캔볼</label>
-  <div class="row">
-    <input id="ballsQty" placeholder="캔볼 수량 (예: 3)" inputmode="numeric">
-    <input id="ballsPrice" placeholder="캔볼 가격 (예: 10000)" inputmode="numeric">
-  </div>
-
-  <div class="hr"></div>
-
-  <div class="split">
-    <div class="muted">총 코트비</div><div class="big mono" id="courtTotal">0원</div>
-  </div>
-  <div class="split">
-    <div class="muted">총 캔볼비</div><div class="big mono" id="ballTotal">0원</div>
-  </div>
-  <div class="split">
-    <div class="muted">총액</div><div class="big mono" id="grandTotal">0원</div>
-  </div>
-  <div class="split">
-    <div class="muted">1/N</div><div class="big mono" id="per">0원</div>
-  </div>
-  <div class="muted mono" id="formula">-</div>
+<h2>💰 비용 입력</h2>
+<div class="row3">
+<input id="courts" placeholder="코트 수">
+<input id="hourly" placeholder="시간당 비용">
+<input id="hours" placeholder="시간">
+</div>
+<div class="row" style="margin-top:8px">
+<input id="ballsQty" placeholder="캔볼 수량">
+<input id="ballsPrice" placeholder="캔볼 가격">
+</div>
+<div class="hr"></div>
+<div class="split"><div>총 코트비</div><div class="mono" id="courtTotal">0원</div></div>
+<div class="split"><div>총 캔볼비</div><div class="mono" id="ballTotal">0원</div></div>
+<div class="split"><div>총액</div><div class="mono" id="grandTotal">0원</div></div>
 </div>
 
 <div class="card">
-  <h2>📋 복사용 결과</h2>
-  <textarea id="output" class="mono" readonly></textarea>
-  <button style="margin-top:8px" id="copyBtn">복사</button>
-  <div class="muted" style="margin-top:8px">
-    출력은 “요약 → 명단 → (빈줄) 1/N → (빈줄) 계좌” 순서로 생성됩니다.
-  </div>
+<h2>📋 복사용 결과</h2>
+<textarea id="output" class="mono" readonly></textarea>
+<button id="copyBtn" style="margin-top:8px">복사</button>
 </div>
-
-<footer class="fwt-footer">
-© FRIENDS WITH TENNIS (FWT)<br>
-본 웹앱은 FWT 내부 정산 보조용으로만 제작되었습니다.<br>
-무단 복제·배포·수정 및 타 클럽 사용을 금합니다.
-</footer>
 
 </div>
 
 <script>
-const __FWT_SIGNATURE__ = "FRIENDS_WITH_TENNIS_INTERNAL_ONLY_2026";
+const $=id=>document.getElementById(id);
+const num=v=>Number(String(v||"").replace(/[^\d.]/g,""))||0;
+const fmt=n=>Math.round(n).toLocaleString()+"원";
+const W=["일","월","화","수","목","금","토"];
 
-const $ = (id) => document.getElementById(id);
-const fmt = (n) => Math.round(n).toLocaleString() + "원";
-const num = (v) => Number(String(v||"").replace(/[,\s원]/g,"")) || 0;
-
-let isRunning = false;
-
-const KOR_WEEK = ["일","월","화","수","목","금","토"];
-
-function pad2(n){ return String(n).padStart(2,"0"); }
-
-function formatKDate(dateStr){
-  // dateStr: YYYY-MM-DD
-  if(!dateStr) return "";
-  const d = new Date(dateStr + "T00:00:00");
-  if(Number.isNaN(d.getTime())) return "";
-  const mm = pad2(d.getMonth()+1);
-  const dd = pad2(d.getDate());
-  const wd = KOR_WEEK[d.getDay()];
-  return `${mm}월${dd}일(${wd})`;
+function fmtDate(v){
+ if(!v) return "";
+ const d=new Date(v+"T00:00:00");
+ return `${String(d.getMonth()+1).padStart(2,"0")}월${String(d.getDate()).padStart(2,"0")}일(${W[d.getDay()]})`;
 }
 
-function getIncludedNames(){
-  return $("names").value
-    .split("\n")
-    .map(v => v.trim())
-    .filter(v => v && !v.startsWith("#"));
+async function runOCR(){
+ const files=[...imgInput.files];
+ if(!files.length){ocrStatus.textContent="이미지 선택 필요";return;}
+ ocrStatus.textContent="OCR 시작…";
+ for(const f of files){
+   ocrStatus.textContent=`처리중: ${f.name}`;
+   const worker=await Tesseract.createWorker("kor+eng");
+   const {data}=await worker.recognize(f);
+   await worker.terminate();
+   const lines=data.text.split("\n").map(v=>v.trim()).filter(v=>v.length>1);
+   if(lines.length){
+     names.value+=(names.value?"\n":"")+lines.join("\n");
+   }
+ }
+ ocrStatus.textContent="OCR 완료 (검토 권장)";
+ recalc();
 }
 
 function recalc(){
-  const courts = num($("courts").value);
-  const hourly = num($("hourly").value);
-  const hours  = num($("hours").value);
-  const ballsQ = num($("ballsQty").value);
-  const ballsP = num($("ballsPrice").value);
+ const list=names.value.split("\n").map(v=>v.trim()).filter(v=>v&&!v.startsWith("#"));
+ count.textContent=list.length+"명";
+ const court=num(courts.value)*num(hourly.value)*num(hours.value);
+ const ball=num(ballsQty.value)*num(ballsPrice.value);
+ const total=court+ball;
+ courtTotal.textContent=fmt(court);
+ ballTotal.textContent=fmt(ball);
+ grandTotal.textContent=fmt(total);
+ const per=list.length?fmt(total/list.length):"0원";
 
-  const courtTotal = courts * hourly * hours;
-  const ballTotal  = ballsQ * ballsP;
-  const grandTotal = courtTotal + ballTotal;
+ const header=fmtDate(datePick.value)+" 코트비 정산입니다.";
+ output.value=[
+   header,"",
+   "총 코트비: "+fmt(court),
+   "총 캔볼비: "+fmt(ball),
+   "총액: "+fmt(total),
+   "정산대상: "+list.length+"명","",
+   ...list.map(n=>n.startsWith("@")?n:"@"+n),
+   "", "1/N: "+per,
+   accountLine.value?("\n"+accountLine.value):""
+ ].join("\n");
+}
 
-  $("courtTotal").textContent = fmt(courtTotal);
-  $("ballTotal").textContent  = fmt(ballTotal);
-  $("grandTotal").textContent = fmt(grandTotal);
+btnOCR.onclick=runOCR;
+btnClear.onclick=()=>{names.value="";output.value="";ocrStatus.textContent="대기중";recalc();}
+copyBtn.onclick=()=>navigator.clipboard.writeText(output.value);
 
-  const list = getIncludedNames();
-  $("count").textContent = list.length + "명";
+["names","courts","hourly","hours","ballsQty","ballsPrice","datePick","accountLine"]
+.forEach(id=>$(id).addEventListener("input",recalc));
 
-  const perVal = list.length ? (grandTotal / list.length) : 0;
-  $("per").textContent = list.length ? fmt(perVal) : "0원";
-
-  $("formula").textContent =
-    `${courts}코트 × ${hourly.toLocaleString()}원/시간 × ${hours}시간 + ` +
-    `${ballsQ}개 × ${ballsP.toLocaleString()}원`;
-
-  const dateStr = $("datePick").value;
-  const dateLabel = formatKDate(dateStr);
-  $("datePreview").textContent = dateLabel ? `${dateLabel}` : "-";
-
-  const headerLine = dateLabel ? `${dateLabel} 코트비 정산입니다.` : `코트비 정산입니다.`;
-
-  const nameLines = list.map(n => n.startsWith("@") ? n : "@"+n);
-
-  const account = ($("accountLine").value || "").trim();
-
-  // ✅ 요구사항: 요약 블록은 유지, 1/N은 맨 아래(명단 끝)로 이동
-  // 출력: 헤더 → 요약(1/N 제외) → 빈줄 → 명단 → 빈줄 → 1/N → 빈줄 → 계좌(입력 그대로)
-  const lines = [
-    headerLine,
-    "",
-    "총 코트비: " + fmt(courtTot
+datePick.value=new Date().toISOString().slice(0,10);
+recalc();
+</script>
+</body>
+</html>
