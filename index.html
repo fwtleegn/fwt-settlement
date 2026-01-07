@@ -34,7 +34,7 @@ button.secondary{background:#fff;color:#111;border:1px solid var(--line)}
 <h2>📷 참석자 스크린샷 OCR (안정)</h2>
 <input type="file" id="imgInput" accept="image/*" multiple>
 <div class="btns">
-<button id="btnOCR">OCR 실행</button>
+<button id="btnOCR">참석명단분석 실행</button>
 <button class="secondary" id="btnClear">초기화</button>
 </div>
 <div class="hr"></div>
@@ -89,13 +89,19 @@ const num = v => Number(String(v||"").replace(/[^\d.]/g,"")) || 0;
 const fmt = n => Math.round(n).toLocaleString()+"원";
 const W = ["일","월","화","수","목","금","토"];
 
+/* ✅ 요일 오류 완전 해결 (UTC 기반 계산) */
 function fmtDate(v){
   if(!v) return "";
-  const d = new Date(v+"T00:00:00");
-  return `${String(d.getMonth()+1).padStart(2,"0")}월${String(d.getDate()).padStart(2,"0")}일(${W[d.getDay()]})`;
+  const [yy, mm, dd] = v.split("-").map(Number);
+  if(!yy || !mm || !dd) return "";
+
+  const utc = new Date(Date.UTC(yy, mm - 1, dd));
+  const wd = W[utc.getUTCDay()];
+
+  return `${String(mm).padStart(2,"0")}월${String(dd).padStart(2,"0")}일(${wd})`;
 }
 
-/* 🔒 자동 중복 제거 (현재 textarea 기준 ONLY) */
+/* 🔒 현재 textarea 기준 자동 중복 제거 */
 function dedupeCurrentNames(){
   const lines = names.value
     .split("\n")
@@ -140,9 +146,7 @@ async function runOCR(){
     }
   }
 
-  /* 🔥 OCR 전체 종료 후 단 1회 자동 중복 제거 */
   dedupeCurrentNames();
-
   ocrStatus.textContent = "OCR 완료 (중복 자동 제거됨)";
   recalc();
 }
